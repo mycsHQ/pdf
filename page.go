@@ -450,6 +450,7 @@ type Point struct {
 type Content struct {
 	Text []Text
 	Rect []Rect
+	Line []Rect
 }
 
 type gstate struct {
@@ -791,7 +792,9 @@ func (p Page) Content() Content {
 	}
 
 	var rect []Rect
+	var line []Rect
 	var gstack []gstate
+	var curPos *Point
 	Interpret(strm, func(stk *Stack, op string) {
 		n := stk.Len()
 		args := make([]Value, n)
@@ -824,8 +827,21 @@ func (p Page) Content() Content {
 		case "f": // fill
 		case "g": // setgray
 		case "l": // lineto
+			if len(args) != 2 {
+				panic("bad re")
+			}
+			if curPos == nil {
+				panic("no current pos")
+			}
+			x, y := args[0].Float64(), args[1].Float64()
+			line = append(line, Rect{Point{curPos.X, curPos.Y}, Point{x, y}})
+			curPos = &Point{x, y}
 		case "m": // moveto
-
+			if len(args) != 2 {
+				panic("bad re")
+			}
+			x, y := args[0].Float64(), args[1].Float64()
+			curPos = &Point{x, y}
 		case "cs": // set colorspace non-stroking
 		case "scn": // set color non-stroking
 
@@ -968,7 +984,7 @@ func (p Page) Content() Content {
 			g.Th = args[0].Float64() / 100
 		}
 	})
-	return Content{text, rect}
+	return Content{text, rect, line}
 }
 
 // TextVertical implements sort.Interface for sorting
